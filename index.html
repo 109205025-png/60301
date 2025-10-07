@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>岩漿上升跑酷</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #1a202c;
+            color: #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow: hidden;
+        }
+
+        #game-container {
+            position: relative;
+            width: 90vmin;
+            height: 90vmin;
+            max-width: 600px;
+            max-height: 600px;
+            background: linear-gradient(to bottom, #4a5568, #2d3748);
+            border-radius: 1rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+        }
+
+        #game-canvas {
+            background-color: transparent;
+            touch-action: none;
+        }
+
+        #game-info, #item-info {
+            position: absolute;
+            top: 1rem;
+            left: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            z-index: 10;
+            pointer-events: none;
+        }
+        
+        #item-info {
+            left: auto;
+            right: 1rem;
+            align-items: flex-end;
+        }
+
+        .info-display {
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            font-weight: bold;
+            font-size: 1.25rem;
+            pointer-events: all;
+            cursor: pointer;
+            user-select: none;
+            transition: background-color 0.2s;
+        }
+        .info-display:hover:not(.disabled) {
+             background-color: rgba(0, 0, 0, 0.7);
+        }
+        .info-display.disabled {
+            background-color: rgba(100, 100, 100, 0.5);
+            cursor: not-allowed;
+        }
+
+
+        #start-screen, #shop-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background-color: rgba(0, 0, 0, 0.85);
+            z-index: 20;
+            text-align: center;
+            padding: 1rem;
+            transition: opacity 0.3s, visibility 0.3s;
+        }
+
+        #shop-screen {
+            visibility: hidden;
+            opacity: 0;
+        }
+        
+        #shop-content {
+            background-color: #2d3748;
+            padding: 2rem;
+            border-radius: 1rem;
+            width: 90%;
+            max-width: 500px;
+        }
+        .shop-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding: 1rem;
+            background-color: #4a5568;
+            border-radius: 0.5rem;
+        }
+
+
+        #start-screen h1 {
+            color: white;
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .mode-container {
+            margin-bottom: 1rem;
+        }
+        .mode-container h2 {
+            color: #a0aec0;
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        #message-box {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #2d3748;
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            z-index: 30;
+            text-align: center;
+            display: none;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        #message-text {
+            font-size: 1.5rem;
+            font-weight: bold;
+            white-space: pre-wrap;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .control-button {
+            background-color: #4c51bf;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 9999px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .control-button:hover {
+            background-color: #5a67d8;
+        }
+
+        @media (max-width: 768px) {
+            .controls {
+                flex-direction: row;
+                align-items: center;
+            }
+        }
+        
+        .btn {
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 9999px;
+            font-size: 1rem;
+            font-weight: bold;
+            transition: transform 0.2s, background-color 0.2s;
+            cursor: pointer;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            margin: 0.25rem;
+        }
+
+        .btn:hover {
+            transform: scale(1.05);
+        }
+        .btn:disabled {
+            background-color: #4a5568;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .difficulty-container {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+    </style>
+</head>
+<body class="bg-gray-800 text-gray-200 flex flex-col items-center justify-center min-h-screen p-4">
+
+    <div id="game-container" class="relative w-full aspect-square max-w-lg mx-auto bg-gray-700 rounded-3xl shadow-xl overflow-hidden">
+        <div id="game-info">
+            <div id="level-display" class="info-display" style="pointer-events:none;">關卡: -</div>
+            <div id="diamond-display" class="info-display" style="pointer-events:none;">💎 0</div>
+            <div id="timer-display" class="info-display" style="pointer-events:none;">時間: 25s</div>
+        </div>
+        <div id="item-info">
+             <div id="rabbit-jump-display" class="info-display hidden">🐇 0</div>
+             <div id="ninja-teleport-display" class="info-display hidden">🥷 0</div>
+             <div id="flame-lives-display" class="info-display hidden">🔥 0</div>
+        </div>
+        <canvas id="game-canvas" class="w-full h-full"></canvas>
+
+        <div id="start-screen">
+            <h1 class="text-4xl font-bold mb-4">岩漿上升跑酷</h1>
+            <div class="info-display mb-4" style="pointer-events:none;">💎 <span id="start-diamond-display">0</span></div>
+
+            <div class="difficulty-container mb-4">
+                 <button id="shop-button" class="btn bg-indigo-500 hover:bg-indigo-600">商店</button>
+            </div>
+            
+            <div class="mode-container">
+                <h2 class="text-2xl font-bold mb-2 text-yellow-300">排位模式</h2>
+                <div class="difficulty-container">
+                    <button id="start-ranked-button" class="btn bg-yellow-500 hover:bg-yellow-600">開始挑戰</button>
+                </div>
+            </div>
+
+            <div class="mode-container">
+                <h2 class="text-2xl font-bold mb-2 text-green-300">經典模式</h2>
+                <div class="difficulty-container">
+                    <button class="btn bg-gray-500 hover:bg-gray-600" data-reward="50" data-speed="0.8" data-level="菜鳥">菜鳥</button>
+                    <button class="btn bg-green-500 hover:bg-green-600" data-reward="100" data-speed="1.2" data-level="普通">普通</button>
+                    <button class="btn bg-red-500 hover:bg-red-600" data-reward="200" data-speed="1.8" data-level="困難">困難</button>
+                    <button class="btn bg-purple-500 hover:bg-purple-600" data-reward="500" data-speed="2.2" data-level="極限">極限</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="shop-screen">
+            <div id="shop-content">
+                <h2 class="text-3xl font-bold mb-4 text-white">商店</h2>
+                <div class="info-display mb-4 mx-auto" style="pointer-events:none;">💎 <span id="shop-diamond-display">0</span></div>
+                <div class="shop-item">
+                    <div>
+                        <p class="font-bold text-lg">🐇 兔子跳 (x3)</p>
+                        <p class="text-sm text-gray-300">獲得3次超級跳躍能力</p>
+                    </div>
+                    <button class="btn bg-green-500 hover:bg-green-600" data-item="rabbitJumps" data-cost="250" data-amount="3">買 💎250</button>
+                </div>
+                <div class="shop-item">
+                    <div>
+                        <p class="font-bold text-lg">🥷 忍者瞬移 (x15)</p>
+                        <p class="text-sm text-gray-300">獲得15次傳送能力</p>
+                    </div>
+                    <button class="btn bg-green-500 hover:bg-green-600" data-item="ninjaTeleports" data-cost="700" data-amount="15">買 💎700</button>
+                </div>
+                <div class="shop-item">
+                    <div>
+                        <p class="font-bold text-lg">🔥 火焰之軀 (x3)</p>
+                        <p class="text-sm text-gray-300">可抵擋3次岩漿傷害</p>
+                    </div>
+                    <button class="btn bg-green-500 hover:bg-green-600" data-item="flameLives" data-cost="500" data-amount="3">買 💎500</button>
+                </div>
+                <button id="close-shop-button" class="btn bg-gray-600 hover:bg-gray-700 mt-6">返回</button>
+            </div>
+        </div>
+
+        <div id="message-box" class="hidden fixed p-8 bg-gray-700 rounded-2xl shadow-xl z-30">
+            <div id="message-text" class="text-xl font-bold mb-4"></div>
+            <button id="restart-button" class="btn bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-2 px-6">返回主選單</button>
+        </div>
+    </div>
+
+    <div class="controls flex items-center justify-center mt-4 space-x-4 md:hidden">
+        <button id="left-button" class="control-button bg-blue-600 hover:bg-blue-700 active:bg-blue-800 p-4 rounded-full shadow-md">
+            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+        </button>
+        <button id="right-button" class="control-button bg-blue-600 hover:bg-blue-700 active:bg-blue-800 p-4 rounded-full shadow-md">
+            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+        </button>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const canvas = document.getElementById('game-canvas');
+            const ctx = canvas.getContext('2d');
+            const startScreen = document.getElementById('start-screen');
+            const classicButtons = document.querySelectorAll('.mode-container:last-child .btn');
+            const rankedButton = document.getElementById('start-ranked-button');
+            const timerDisplay = document.getElementById('timer-display');
+            const levelDisplay = document.getElementById('level-display');
+            const messageBox = document.getElementById('message-box');
+            const messageText = document.getElementById('message-text');
+            const restartButton = document.getElementById('restart-button');
+            const leftButton = document.getElementById('left-button');
+            const rightButton = document.getElementById('right-button');
+            const shopButton = document.getElementById('shop-button');
+            const shopScreen = document.getElementById('shop-screen');
+            const closeShopButton = document.getElementById('close-shop-button');
+            const shopBuyButtons = document.querySelectorAll('#shop-content .btn[data-item]');
+            const diamondDisplays = {
+                start: document.getElementById('start-diamond-display'),
+                shop: document.getElementById('shop-diamond-display'),
+                game: document.getElementById('diamond-display')
+            };
+            const itemDisplays = {
+                rabbit: document.getElementById('rabbit-jump-display'),
+                ninja: document.getElementById('ninja-teleport-display'),
+                flame: document.getElementById('flame-lives-display')
+            };
+
+            let game;
+            let animationFrameId;
+            let isRankedMode = false;
+            let currentRank = 1;
+            let diamonds = 0;
+            let inventory = { rabbitJumps: 0, ninjaTeleports: 0, flameLives: 0 };
+
+            const rankedLevels = [
+                null, 
+                { speed: 1.0, name: "等級1", reward: 100, time: 25 },
+                { speed: 1.5, name: "等級2", reward: 200, time: 25 },
+                { speed: 2.0, name: "等級3", reward: 300, time: 25 },
+                { speed: 2.5, name: "等級4", reward: 500, time: 25 }
+            ];
+
+            function saveData() {
+                localStorage.setItem('parkour_diamonds', diamonds);
+                localStorage.setItem('parkour_inventory', JSON.stringify(inventory));
+            }
+
+            function loadData() {
+                diamonds = parseInt(localStorage.getItem('parkour_diamonds') || '0');
+                const savedInventory = localStorage.getItem('parkour_inventory');
+                if (savedInventory) {
+                    inventory = JSON.parse(savedInventory);
+                }
+                updateDiamondUI();
+                updateShopUI();
+            }
+
+            function updateDiamondUI() {
+                diamondDisplays.start.textContent = diamonds;
+                diamondDisplays.shop.textContent = diamonds;
+                diamondDisplays.game.textContent = `💎 ${diamonds}`;
+            }
+
+            function addDiamonds(amount) {
+                diamonds += amount;
+                updateDiamondUI();
+                saveData();
+            }
+
+            function updateShopUI() {
+                updateDiamondUI();
+                shopBuyButtons.forEach(button => {
+                    const cost = parseInt(button.dataset.cost);
+                    button.disabled = diamonds < cost;
+                });
+            }
+            
+            function toggleShop(show) {
+                if(show) {
+                    updateShopUI();
+                    shopScreen.style.visibility = 'visible';
+                    shopScreen.style.opacity = '1';
+                } else {
+                    shopScreen.style.visibility = 'hidden';
+                    shopScreen.style.opacity = '0';
+                }
+            }
+            
+            function buyItem(item, cost, amount) {
+                if (diamonds >= cost) {
+                    diamonds -= cost;
+                    inventory[item] += amount;
+                    updateShopUI();
+                    saveData();
+                }
+            }
+
+            class Player {
+                constructor() {
+                    this.width = 32; this.height = 48;
+                    this.x = canvas.width / 2 - this.width / 2; this.y = canvas.height - 100;
+                    this.speedX = 0; this.speedY = 0;
+                    this.gravity = 0.5; this.isJumping = true; this.onPlatform = null;
+                    this.facingDirection = 'right'; this.animationFrame = 0;
+                    this.frameCounter = 0; this.frameDelay = 5; this.isRunning = false;
+                }
+                draw() {
+                    ctx.save();
+                    ctx.translate(this.x, this.y);
+                    if (this.facingDirection === 'left') {
+                        ctx.scale(-1, 1);
+                        ctx.translate(-this.width, 0);
+                    }
+                    if (this.isJumping) this.drawJumpingSprite();
+                    else if (this.isRunning) this.drawRunningSprite();
+                    else this.drawStandingSprite();
+                    ctx.restore();
+                }
+                drawStandingSprite() {
+                    ctx.fillStyle = '#d9534f'; ctx.fillRect(4, 18, 24, 18);
+                    ctx.fillStyle = '#f0ad4e'; ctx.fillRect(0, 18, 4, 14); ctx.fillRect(28, 18, 4, 14);
+                    ctx.fillRect(8, 0, 16, 18);
+                    ctx.fillStyle = '#000'; ctx.fillRect(12, 6, 4, 4); ctx.fillRect(20, 6, 4, 4);
+                    ctx.fillStyle = '#292f33'; ctx.fillRect(4, 36, 10, 12); ctx.fillRect(18, 36, 10, 12);
+                }
+                drawJumpingSprite() {
+                    ctx.fillStyle = '#d9534f'; ctx.fillRect(4, 20, 24, 16);
+                    ctx.fillStyle = '#f0ad4e'; ctx.fillRect(0, 12, 4, 14); ctx.fillRect(28, 12, 4, 14);
+                    ctx.fillRect(8, 2, 16, 18);
+                    ctx.fillStyle = '#000'; ctx.fillRect(12, 8, 4, 4); ctx.fillRect(20, 8, 4, 4);
+                    ctx.fillStyle = '#292f33'; ctx.fillRect(6, 36, 8, 10); ctx.fillRect(18, 36, 8, 10);
+                }
+                drawRunningSprite() {
+                    const frame = this.animationFrame;
+                    const bobOffset = Math.sin(this.frameCounter / (this.frameDelay / 1.5) * Math.PI) * 2;
+                    ctx.fillStyle = '#d9534f'; ctx.fillRect(4, 18 + bobOffset, 24, 18);
+                    ctx.fillStyle = '#f0ad4e'; ctx.fillRect(8, 0 + bobOffset, 16, 18);
+                    ctx.fillStyle = '#000'; ctx.fillRect(12, 6 + bobOffset, 4, 4); ctx.fillRect(20, 6 + bobOffset, 4, 4);
+                    const armColor = '#f0ad4e', legColor = '#292f33';
+                    ctx.fillStyle = armColor;
+                    if (frame === 0) { ctx.fillRect(0, 18 + bobOffset, 4, 14); ctx.fillRect(28, 18 + bobOffset, 4, 10); ctx.fillStyle = legColor; ctx.fillRect(0, 36, 10, 10); ctx.fillRect(18, 36, 10, 12); } 
+                    else if (frame === 1) { ctx.fillRect(0, 18 + bobOffset, 4, 12); ctx.fillRect(28, 18 + bobOffset, 4, 12); ctx.fillStyle = legColor; ctx.fillRect(4, 36, 10, 12); ctx.fillRect(18, 36, 10, 12); } 
+                    else if (frame === 2) { ctx.fillRect(0, 18 + bobOffset, 4, 10); ctx.fillRect(28, 18 + bobOffset, 4, 14); ctx.fillStyle = legColor; ctx.fillRect(4, 36, 10, 12); ctx.fillRect(22, 36, 10, 10); } 
+                    else { ctx.fillRect(0, 18 + bobOffset, 4, 12); ctx.fillRect(28, 18 + bobOffset, 4, 12); ctx.fillStyle = legColor; ctx.fillRect(4, 36, 10, 12); ctx.fillRect(18, 36, 10, 12); }
+                }
+                update() {
+                    this.x += this.speedX; this.y += this.speedY; this.speedY += this.gravity;
+                    if (this.speedX > 0) this.facingDirection = 'right'; if (this.speedX < 0) this.facingDirection = 'left';
+                    this.isRunning = this.speedX !== 0 && !this.isJumping;
+                    if (this.isRunning) { this.frameCounter++; if (this.frameCounter >= this.frameDelay * 2) { this.frameCounter = 0; } this.animationFrame = Math.floor(this.frameCounter / this.frameDelay); } else { this.animationFrame = 0; this.frameCounter = 0; }
+                    if (this.x < 0) this.x = 0; if (this.x + this.width > canvas.width) this.x = canvas.width - this.width;
+                    if (this.y > game.cameraY + canvas.height) game.gameOver("你掉下去了！");
+                }
+                jump() { if (!this.isJumping) { this.speedY = -14; this.isJumping = true; } }
+                superJump() { if (!this.isJumping) { this.speedY = -25; this.isJumping = true; } }
+            }
+
+            class Platform {
+                constructor(x, y, isSpecial = false) { this.width = 100; this.height = 10; this.x = x; this.y = y; this.color = isSpecial ? '#fde047' : '#9ca3af'; this.isSpecial = isSpecial; }
+                draw() { ctx.fillStyle = this.color; ctx.fillRect(this.x, this.y, this.width, this.height); }
+            }
+
+            class Game {
+                constructor(lavaSpeed, levelName, reward, timeLimit) {
+                    this.lavaSpeed = lavaSpeed; this.levelName = levelName; this.reward = reward; this.timeLimit = timeLimit;
+                    this.player = new Player(); this.platforms = []; this.cameraY = 0;
+                    this.isGameOver = false; this.isGamePaused = true;
+                    this.lavaY = 0; this.timer = 0;
+                }
+                init() {
+                    this.isGameOver = false; this.isGamePaused = true; this.platforms = [];
+                    this.player = new Player(); this.cameraY = 0; this.lavaY = canvas.height; this.timer = 0;
+                    this.setupInitialPlatforms(); this.updateUI(); this.updateItemUI();
+                }
+                setupInitialPlatforms() {
+                    this.platforms.push(new Platform(canvas.width / 2 - 50, canvas.height - 50));
+                    let currentY = canvas.height - 150;
+                    while (currentY > -canvas.height) { this.generatePlatform(currentY); currentY -= Math.random() * 80 + 50; }
+                }
+                generatePlatform(y) { const x = Math.random() * (canvas.width - 100); const isSpecial = Math.random() < 0.1; this.platforms.push(new Platform(x, y, isSpecial)); }
+                update() {
+                    if (this.isGamePaused || this.isGameOver) return;
+                    this.player.update(); this.checkCollisions();
+                    if (this.player.y < canvas.height / 2 + this.cameraY) { this.cameraY = -(this.player.y - canvas.height/2); }
+                    this.timer += 1 / 60;
+                    if (this.timer >= this.timeLimit) { this.winGame(); return; }
+                    this.lavaY -= this.lavaSpeed;
+                    if (this.player.y + this.player.height >= this.lavaY) {
+                        if (inventory.flameLives > 0) {
+                            inventory.flameLives--;
+                            this.lavaY += 100; // 岩漿退後
+                            this.updateItemUI();
+                            saveData();
+                        } else {
+                            this.gameOver("你被熔岩吞噬了！");
+                        }
+                    }
+                    const topOfScreen = -this.cameraY;
+                    if (this.platforms.length > 0 && this.platforms[this.platforms.length - 1].y > topOfScreen - canvas.height) { this.generatePlatform(this.platforms[this.platforms.length - 1].y - (Math.random() * 80 + 50)); }
+                    this.platforms = this.platforms.filter(p => p.y < topOfScreen + canvas.height + 50);
+                    this.updateUI();
+                }
+                checkCollisions() {
+                    this.platforms.forEach(platform => {
+                        if ( this.player.speedY >= 0 && this.player.y + this.player.height >= platform.y && this.player.y + this.player.height <= platform.y + platform.height + 10 && this.player.x + this.player.width > platform.x && this.player.x < platform.x + platform.width ) {
+                            this.player.speedY = 0; this.player.y = platform.y - this.player.height; this.player.isJumping = false; this.player.onPlatform = platform;
+                            if (platform.isSpecial) { this.player.speedY = -20; this.player.isJumping = true; }
+                        }
+                    });
+                }
+                draw() {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height); ctx.save(); ctx.translate(0, this.cameraY);
+                    this.platforms.forEach(platform => platform.draw()); this.player.draw();
+                    ctx.fillStyle = '#ff4500'; ctx.fillRect(0, this.lavaY, canvas.width, canvas.height * 2); ctx.restore();
+                }
+                gameLoop() {
+                    this.update(); this.draw();
+                    if (!this.isGameOver) { animationFrameId = requestAnimationFrame(() => this.gameLoop()); }
+                }
+                gameOver(message = "遊戲結束！") {
+                    this.isGameOver = true; cancelAnimationFrame(animationFrameId);
+                    if (isRankedMode) messageText.innerText = `挑戰失敗！您止步於 ${this.levelName}。`;
+                    else messageText.innerText = message;
+                    messageBox.style.display = 'flex';
+                }
+                winGame() {
+                    this.isGameOver = true; cancelAnimationFrame(animationFrameId);
+                    addDiamonds(this.reward);
+                    if (isRankedMode) {
+                        if (currentRank < rankedLevels.length - 1) {
+                            currentRank++;
+                            messageText.innerText = `恭喜晉級！獲得 💎${this.reward}\n下一關: ${rankedLevels[currentRank].name}`;
+                            messageBox.style.display = 'flex';
+                            restartButton.style.display = 'none';
+                            setTimeout(() => { messageBox.style.display = 'none'; restartButton.style.display = 'block'; startNextRankedLevel(); }, 2500);
+                        } else {
+                            messageText.innerText = `太強了！您已通過所有排位挑戰！\n獲得 💎${this.reward}`;
+                            messageBox.style.display = 'flex';
+                        }
+                    } else {
+                        messageText.innerText = `恭喜你！成功逃離！\n獲得 💎${this.reward}`;
+                        messageBox.style.display = 'flex';
+                    }
+                }
+                updateUI() {
+                    levelDisplay.innerText = `關卡: ${this.levelName}`;
+                    const timeLeft = Math.max(0, this.timeLimit - this.timer);
+                    timerDisplay.innerText = `時間: ${timeLeft.toFixed(0)}s`;
+                    updateDiamondUI();
+                }
+                updateItemUI() {
+                    Object.keys(itemDisplays).forEach(key => { itemDisplays[key].classList.add('hidden'); });
+                    if(inventory.rabbitJumps > 0) { itemDisplays.rabbit.textContent = `🐇 ${inventory.rabbitJumps}`; itemDisplays.rabbit.classList.remove('hidden'); itemDisplays.rabbit.classList.toggle('disabled', inventory.rabbitJumps <= 0); }
+                    if(inventory.ninjaTeleports > 0) { itemDisplays.ninja.textContent = `🥷 ${inventory.ninjaTeleports}`; itemDisplays.ninja.classList.remove('hidden'); itemDisplays.ninja.classList.toggle('disabled', inventory.ninjaTeleports <= 0); }
+                    if(inventory.flameLives > 0) { itemDisplays.flame.textContent = `🔥 ${inventory.flameLives}`; itemDisplays.flame.classList.remove('hidden'); itemDisplays.flame.style.pointerEvents = 'none'; }
+                }
+                useRabbitJump() { if(inventory.rabbitJumps > 0) { this.player.superJump(); inventory.rabbitJumps--; this.updateItemUI(); saveData(); } }
+                useNinjaTeleport() {
+                    if (inventory.ninjaTeleports > 0) {
+                        const nextPlatform = this.platforms
+                            .filter(p => p.y < this.player.y)
+                            .sort((a,b) => b.y - a.y)[0];
+                        if (nextPlatform) {
+                            this.player.x = nextPlatform.x + (nextPlatform.width / 2) - (this.player.width / 2);
+                            this.player.y = nextPlatform.y - this.player.height - 5;
+                            this.player.speedY = 0; // 防止掉下去
+                            inventory.ninjaTeleports--;
+                            this.updateItemUI();
+                            saveData();
+                        }
+                    }
+                }
+            }
+
+            function startGame(lavaSpeed, levelName, reward, timeLimit) {
+                startScreen.style.display = 'none'; messageBox.style.display = 'none';
+                game = new Game(lavaSpeed, levelName, reward, timeLimit); game.init(); game.isGamePaused = false; game.gameLoop();
+            }
+
+            function startNextRankedLevel() {
+                const level = rankedLevels[currentRank];
+                startGame(level.speed, level.name, level.reward, level.time);
+            }
+
+            function handleKeyDown(e) {
+                if (!game || game.isGamePaused) return;
+                switch (e.key) {
+                    case 'A': case 'a': case 'ArrowLeft': game.player.speedX = -5; break;
+                    case 'D': case 'd': case 'ArrowRight': game.player.speedX = 5; break;
+                    case ' ': game.player.jump(); break;
+                }
+            }
+            function handleKeyUp(e) { if (!game) return; if (['a', 'd', 'A', 'D', 'ArrowLeft', 'ArrowRight'].includes(e.key)) game.player.speedX = 0; }
+            function resizeCanvas() { const container = document.getElementById('game-container'); canvas.width = container.clientWidth; canvas.height = container.clientHeight; if (game) game.draw(); }
+
+            window.addEventListener('resize', resizeCanvas); document.addEventListener('keydown', handleKeyDown); document.addEventListener('keyup', handleKeyUp);
+            
+            classicButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    isRankedMode = false;
+                    const speed = parseFloat(button.dataset.speed);
+                    const level = button.dataset.level;
+                    const reward = parseInt(button.dataset.reward);
+                    startGame(speed, level, reward, 25);
+                });
+            });
+
+            rankedButton.addEventListener('click', () => { isRankedMode = true; currentRank = 1; startNextRankedLevel(); });
+            restartButton.addEventListener('click', () => { startScreen.style.display = 'flex'; messageBox.style.display = 'none'; });
+            shopButton.addEventListener('click', () => toggleShop(true));
+            closeShopButton.addEventListener('click', () => toggleShop(false));
+            
+            shopBuyButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    const item = button.dataset.item;
+                    const cost = parseInt(button.dataset.cost);
+                    const amount = parseInt(button.dataset.amount);
+                    buyItem(item, cost, amount);
+                });
+            });
+
+            itemDisplays.rabbit.addEventListener('click', () => game?.useRabbitJump());
+            itemDisplays.ninja.addEventListener('click', () => game?.useNinjaTeleport());
+
+            leftButton.addEventListener('touchstart', (e) => { e.preventDefault(); if(game) game.player.speedX = -5; });
+            leftButton.addEventListener('touchend', (e) => { e.preventDefault(); if(game) game.player.speedX = 0; });
+            rightButton.addEventListener('touchstart', (e) => { e.preventDefault(); if(game) game.player.speedX = 5; });
+            rightButton.addEventListener('touchend', (e) => { e.preventDefault(); if(game) game.player.speedX = 0; });
+            canvas.addEventListener('touchstart', (e) => { if (!game || game.isGamePaused) return; game.player.jump(); });
+
+            loadData();
+            resizeCanvas();
+        });
+    </script>
+</body>
+</html>
+
+
+
+
